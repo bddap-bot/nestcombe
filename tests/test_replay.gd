@@ -4,7 +4,9 @@ extends "res://../tests/support/suite.gd"
 ## the head where it was frame for frame, and the garden it ended with, every check the record took holding. On a
 ## later build whose tools make nothing of the same input, it replays to the same garden, the edits being the record's
 ## commands, and says where the player first stands elsewhere; where a command's result, the wildlife and a thrown
-## handful diverge, it says where each first did.
+## handful diverge, it says where each first did. Mid-session the player puts on a file of their own, which the rig
+## refits them to, and the headset leaves focus and comes back: the replay wears the file, from the folder it is given,
+## and pauses where the session did.
 
 const Replayed := preload("res://../tests/support/replayed.gd")
 const VISITOR := 2
@@ -12,6 +14,8 @@ const COMES := 30
 const PROPOSES := 90
 ## A wildlife seed with its top bit set, which reads back as a negative number.
 const TOP_BIT_SEED := -5385056196784741867
+## The folder of the player's own avatar files, which a replay is given.
+var _avatars := ""
 
 
 ## The network as one visitor's game gives it: it comes, then proposes a tree.
@@ -74,6 +78,27 @@ func _initialize() -> void:
 		{"op": "aim", "dir": [0, -0.3, -1], "seconds": 0.5, "settle": 1.0},
 		hill.merged({"op": "gesture"}),
 	])
+	# The headset leaves focus mid-aim, which ends the aim, so the stick let go meanwhile teleports nowhere.
+	main.rig.left.global_transform = Driver.aim_pose(main.rig.head.global_transform, [0, -0.3, -1])
+	Hand.injected_sticks[main.rig.left.tracker] = Vector2(0, 1)
+	await until(func() -> bool: return main.rig.aim_ground != null, "the player aiming a teleport")
+	var aimed := main.rig.global_transform
+	main._xr_state(OpenXRInterface.SESSION_STATE_VISIBLE)
+	Hand.injected_sticks.erase(main.rig.left.tracker)
+	await frames(5)
+	main._xr_state(OpenXRInterface.SESSION_STATE_FOCUSED)
+	await frames(Replay.CHECK_EVERY)
+	check(main.rig.global_transform == aimed, "the aim a pause ended teleports nowhere")
+	var avatars := ProjectSettings.globalize_path(folder.path_join("avatars"))
+	_avatars = avatars
+	DirAccess.make_dir_recursive_absolute(avatars)
+	var file := FileAccess.get_file_as_bytes(ProjectSettings.globalize_path("res://").path_join("../tests/avatars/godette-0.x.vrm"))
+	var out := FileAccess.open(avatars.path_join("mine.vrm"), FileAccess.WRITE)
+	out.store_buffer(file)
+	out.close()
+	main.session.folder = avatars
+	await until(func() -> bool: return main.rig.body.source == Session.sha256(file) and main.rig.world_scale != 1.0 and main.rig._fade_t < 0.0,
+		"the player's own file worn, and the rig refitted to it")
 	# Frames of another length than the run's own, which only the recorded deltas give the replay.
 	Engine.time_scale = 0.5
 	await play([{"op": "glide", "eye": [3, 1.65, 4], "at": [0, 1.2, 0], "seconds": 1.0}])
@@ -92,10 +117,18 @@ func _initialize() -> void:
 		"the session raised a hill and took a tree: %s" % [garden.cmds.map(func(c: Dictionary) -> String: return c.op)])
 
 	var chunk := folder.path_join(Array(DirAccess.get_files_at(folder)).filter(func(f: String) -> bool: return f.ends_with(".jsonl"))[0])
-	var heard: Array = Replay.read(chunk).messages.map(func(m: Array) -> Array: return [m[1], m[2], m[3]])
+	var record := Replay.read(chunk, avatars)
+	var heard: Array = record.messages.map(func(m: Array) -> Array: return [m[1], m[2], m[3]])
 	check([0, VISITOR, "peer_connected"] in heard and [VISITOR, VISITOR, "_propose"] in heard and [0, VISITOR, "ordered"] in heard,
 		"the record holds the visitor coming and its tree as it proposed it and as this host ordered it: %s" % [heard])
-	var record := Replay.read(chunk)
+	var looks: Array = record.messages.filter(func(m: Array) -> bool: return m[3] == "look")
+	check(looks.size() == 2 and looks[0][0] == 0 and looks[0][4][0].is_empty() and looks[1][4][0].get("sha256") == Session.sha256(file)
+		and record.avatars.keys() == [Session.sha256(file)],
+		"the record holds the look the session began in and the file put on, as its hash: %s" % [looks.map(func(m: Array) -> Array: return [m[0], m[4][0]])])
+	check(["paused", "resumed"] == heard.map(func(m: Array) -> String: return m[2]).filter(func(c: String) -> bool: return c in ["paused", "resumed"]),
+		"the record holds the headset leaving focus and coming back")
+	var unfiled := Replay.read(chunk)
+	check(Session.sha256(file) in unfiled.get("error", ""), "without the folder holding the file worn, the record is refused, naming it: %s" % unfiled.get("error"))
 	check(record.seeds.wildlife == str(TOP_BIT_SEED), "the wildlife grew from the seed given, top bit and all: %s" % record.seeds.wildlife)
 	var gardens: Array = record.checks.filter(func(c: Dictionary) -> bool: return c.has("garden"))
 	check(record.checks.size() > 5 and gardens.size() >= 2 and gardens[-1].seq == garden.seq,
@@ -174,7 +207,7 @@ func _initialize() -> void:
 		check(d.get("physics", {}).get("frame") == flown and d.physics.second > 0.0, "it says the handfuls first differ at frame %d and when: %s" % [flown, d.get("physics")])
 		check(not d.has("player"), "and the player, played from the same input, holds: %s" % [d.get("player")])
 
-	for sub in ["later", "diverged", ""]:
+	for sub in ["later", "diverged", "avatars", ""]:
 		for name in DirAccess.get_files_at(folder.path_join(sub)):
 			DirAccess.remove_absolute(folder.path_join(sub).path_join(name))
 		DirAccess.remove_absolute(folder.path_join(sub))
@@ -206,7 +239,8 @@ func _replay(chunk: String) -> Dictionary:
 	DirAccess.remove_absolute(out)
 	var said := []
 	var code := OS.execute(OS.get_executable_path(), ["--headless", "--fixed-fps", "60", "--path", ProjectSettings.globalize_path("res://"),
-		"--script", "../tests/support/replayed.gd", "--", "--replay", ProjectSettings.globalize_path(chunk), "--out", out], said, true)
+		"--script", "../tests/support/replayed.gd", "--", "--replay", ProjectSettings.globalize_path(chunk), "--out", out,
+		"--avatars", _avatars], said, true)
 	check(code == 0 and FileAccess.file_exists(out), "the replay of %s runs: exit %d\n%s" % [chunk.get_base_dir().get_file(), code, said[0].right(4000)])
 	if not FileAccess.file_exists(out):
 		return {}

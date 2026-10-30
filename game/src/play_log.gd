@@ -14,7 +14,7 @@ const SWITCH := "record-sessions"
 const ARM := "capture-performance"
 const ARM_SECONDS := 600
 ## The record's format: the events it holds and how a frame lays out (Replay). A record of another replays on no build.
-const SCHEMA := 2
+const SCHEMA := 3
 const MAX_BYTES := 4194304
 const MAX_FILES := 64
 var directory: String

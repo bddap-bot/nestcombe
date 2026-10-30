@@ -50,7 +50,7 @@ func _ready() -> void:
 		FastCores.keep_this_thread()
 	args.merge(_parse(launch_args()))
 	if args.has("replay"):
-		var record := Replay.read(args.replay)
+		var record := Replay.read(args.replay, str(args.get("avatars", Main.player_path("avatars"))))
 		if record.has("error"):
 			push_error("replay: %s" % record.error)
 			Main.quit(get_tree(), 1)
@@ -152,7 +152,7 @@ func _ready() -> void:
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
 	session.painting = easel_tool
 	session.book = book
-	session.folder = args.get("avatars", Main.player_path("avatars") if played else "")
+	session.folder = args.get("avatars", Main.player_path("avatars") if played else "") if replayer == null else ""
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)
 	add_child(session)
@@ -282,6 +282,7 @@ func record(into: PlayLog) -> void:
 	if not into.take.is_empty():
 		add_child(Take.new(into))
 	into.begin({"rng": str(rng_seed), "wildlife": str(wildlife.rng.seed)}, world.snapshot())
+	world.hear("look", [session.worn, session.avatar, session.colour])
 
 
 ## The commit this build was exported from (scripts/package.sh), or "development" when run from the source.
@@ -366,14 +367,21 @@ func _xr_state(state: int) -> void:
 	if get_tree().paused == pause:
 		return
 	get_tree().paused = pause
-	# Paused hands stop following their controllers; the system menu draws its own.
+	held(pause)
+	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
+
+
+## What a pause does to play beside stopping the tree, which the record keeps (`paused`, `resumed`) and a replay, never
+## paused, does where the record has it (Replayer): hands stop following their controllers, since the system menu draws
+## its own, and an aim ends; a return takes the controls as they are (`Buttons.resumes`).
+func held(pause: bool) -> void:
+	world.hear("paused" if pause else "resumed", [])
 	rig.left.visible = not pause
 	rig.right.visible = not pause
 	if pause:
 		rig.end_aim()
 	else:
 		Buttons.resumes += 1
-	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 
 func _note_session() -> void:

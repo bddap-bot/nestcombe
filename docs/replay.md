@@ -18,9 +18,24 @@ joints replays as a controller held at its palm, giving the same inputs. The gam
 The garden is the record's: every build command replays as the host ordered it (`ordered` in a host's record,
 `_commit` in a visitor's; multiplayer.md), applied when the record says it came, and a proposal a host received is only
 the order that follows it. The tools still see the replayed input, draw their ghosts and submit what they make of it,
-but in a replay (`World.replayed`) a submitted command goes nowhere. tests/test_replay.gd records a scripted session
-in which a visiting player proposes a tree and some frames run at half speed, replays it in a fresh game, and finds
-every frame's delta and head pose and the final garden equal, and every check the record took holding.
+but in a replay (`World.replayed`) a submitted command goes nowhere.
+
+The player is the record's too. How tall they stand in the world is their avatar's eye height over their own
+(`Rig.fit`), so the replay wears what they wore: the look they began in and each they put on (`look`, `Session.put_on`),
+put on between frames, where the session put it on, so both refit them from the same frame. A built-in avatar is named
+by its number and colour; a file of their own the record keeps only as its hash, and the replay reads it from the
+folder `--avatars` names, by default the player folder's own `avatars`, so on the device that recorded it nothing is
+passed. A record whose file that folder lacks is refused, naming the file: pull the avatars folder off the device
+with its sessions. The head is the runtime's alone: a refit sets the player down where the runtime will next report
+the head at the new scale and leaves the head as it was given (`Rig.place`), so the record keeps every head pose as
+the runtime gave it. A replay never pauses, but where the headset left focus and came back (`paused`, `resumed`;
+`Main.held`) it does what the pause did to play: an aim under way ends, and on return the controls are taken as they
+are.
+
+tests/test_replay.gd records a scripted session in which a visiting player proposes a tree, the headset leaves focus
+mid-aim, the player puts on a file of their own and is refitted to it, and some frames run at half speed; it replays it
+in a fresh game, and finds every frame's delta and head pose and the final garden equal, and every check the record
+took holding.
 
 In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
 under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session

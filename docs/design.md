@@ -5398,7 +5398,9 @@ the player who made it: elsewhere as the host sent it (`_commit`), on the host a
 machine, beside the `_propose` it came in as), so a replay tells what a host ordered from what it was sent. With
 them go the refusals and the garden a host sends a joiner, each remote player's appearance, poses, held items, throws and
 spring grabs, players coming and going, and this machine joining a garden (its address and port), going home, or
-being dropped by the garden it visited. A `checks` record keeps what the session's state has
+being dropped by the garden it visited. Beside them, from this machine, go the player's own look as the session begins
+and whenever it changes (`look`: their built-in avatar and colour, or their file, as its hash) and the headset leaving
+focus and coming back (`paused`, `resumed`). A `checks` record keeps what the session's state has
 come to every `Replay.CHECK_EVERY` frames, and the garden's digest whenever it is kept, for a replay to compare
 (replay.md). An
 avatar file a message carries is kept as its SHA-256 and length, never the file. Every networked method records what it

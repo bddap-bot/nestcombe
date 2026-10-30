@@ -2,7 +2,8 @@
 # Plays a demo script, or replays a session record, on the desktop renderer under a virtual display:
 # render.sh SCRIPT.json|CHUNK.jsonl OUT_DIR [ENGINE_ARGS...]
 # A record (any chunk of a session) is seen from its recorded head, or from CAIRNFOLD_CAMERA=PATH.json's camera path, until
-# it runs out (docs/replay.md).
+# it runs out (docs/replay.md), wearing the player's own avatar files from CAIRNFOLD_AVATARS, the avatars folder pulled off
+# the device that recorded it.
 # Recording a movie records the game's own audio mix too: render.sh SCRIPT OUT --write-movie OUT/x.avi --fixed-fps 30
 # CAIRNFOLD_QUIT_AFTER: game seconds before it quits (120 for a script). CAIRNFOLD_TIMEOUT: wall seconds before it is
 # killed (1800). CAIRNFOLD_ICD: the Vulkan driver's ICD file (the NVIDIA one).
@@ -17,6 +18,7 @@ if [[ $source == *.jsonl ]]; then
 else
   play=(--script "$source" --quit-after "${CAIRNFOLD_QUIT_AFTER:-120}")
 fi
+if [ -n "${CAIRNFOLD_AVATARS:-}" ]; then play+=(--avatars "$(realpath "$CAIRNFOLD_AVATARS")"); fi
 if [ -n "${CAIRNFOLD_CAMERA:-}" ]; then play+=(--camera "$(realpath "$CAIRNFOLD_CAMERA")"); fi
 cd "$(dirname "$0")/../game"
 display=:$((100 + RANDOM % 800))

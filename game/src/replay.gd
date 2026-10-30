@@ -116,9 +116,10 @@ static func messages(event: Dictionary) -> Array:
 ## "revision" that recorded it, its "seeds", the "garden" it started in, every frame's input as "frames" (`frame`'s
 ## bytes end to end) and each hand's inputs as "inputs" (`unpack`'s names), every message it heard as "messages"
 ## (`messages`') and every check it took as "checks" (`check`'s digests, or the garden's, each with the "frame" it was
-## taken in), oldest first. A record from another build revision replays; with "error" instead, why this build cannot
-## replay it whole.
-static func read(path: String) -> Dictionary:
+## taken in), oldest first, and as "avatars" the bytes of each file the player wore (Session.put_on), by hash, from the
+## folder `avatars`, which the record keeps only as hashes. A record from another build revision replays; with "error"
+## instead, why this build cannot replay it whole.
+static func read(path: String, avatars := "") -> Dictionary:
 	var folder := path.get_base_dir()
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
 	var names := Array(DirAccess.get_files_at(folder)).filter(func(f: String) -> bool: return f.begins_with(session + "-") and f.ends_with(".jsonl"))
@@ -164,6 +165,19 @@ static func read(path: String) -> Dictionary:
 		if int(e.first) != out.messages.size():
 			return {"error": "%s lost messages %d to %d" % [path, out.messages.size(), int(e.first) - 1]}
 		out.messages.append_array(messages(e))
+	out.avatars = {}
+	var held := {}
+	for m: Array in out.messages:
+		if m[3] != "look" or not m[4][0] is Dictionary:
+			continue
+		if held.is_empty() and avatars != "":
+			for f in DirAccess.get_files_at(avatars):
+				if f.get_extension().to_lower() == "vrm":
+					var bytes := FileAccess.get_file_as_bytes(avatars.path_join(f))
+					held[Session.sha256(bytes)] = bytes
+		if not held.has(m[4][0].sha256):
+			return {"error": "%s wears avatar file %s, which the folder %s does not hold: pass the avatars folder of the device that recorded it (--avatars)" % [path, m[4][0].sha256, avatars]}
+		out.avatars[m[4][0].sha256] = held[m[4][0].sha256]
 	return out
 
 

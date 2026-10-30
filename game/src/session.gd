@@ -725,7 +725,8 @@ func _have_file(key: String, bytes: PackedByteArray, scene: PackedScene, f: Stri
 func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 	_spring_holds.clear()
 	worn = bytes
-	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(avatar), colour, key))
+	if not world.replayed:
+		put_on.call_deferred(scene, key, bytes, avatar, colour)
 	previews.erase(worn_key)
 	worn_key = key
 	_shelved = PackedByteArray([0, 0, 0, 0]) + worn
@@ -735,6 +736,14 @@ func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 	print("session: wearing %s" % (key if key != "" else "a built-in avatar"))
 	if not multiplayer.get_peers().is_empty():
 		_wear.rpc(worn, avatar)
+
+
+## Puts on `scene`, file `key` of `bytes`, or with none built-in avatar `look`, in `tint`, and has the record keep it as
+## `look` (its file as a hash, PlayLog): a choice is put on between frames, where a replay puts the record's on, so the
+## rig refits the player (`Rig.fit`) from the same frame in both.
+func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, tint: Color) -> void:
+	world.hear("look", [bytes, look, tint])
+	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(look), tint, key))
 
 
 ## Reads a VRM, from `bytes` or the file at `path`, and hashes it on a worker thread; `done(hash, bytes, scene)`
