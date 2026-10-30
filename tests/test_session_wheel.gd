@@ -172,6 +172,7 @@ func _every_file_in_the_folder_is_on_the_wheel(session: Session, hand: Hand) -> 
 	check(session.worn.is_empty() and session.avatar == 2, "a built-in choice replaces a worn file")
 	for f: String in keys:
 		hand.people.activate("file:" + f)
+		await process_frame
 		check(session.worn_key == keys[f] and main.rig.body.source == keys[f], "choosing a file's slot wears it: " + f)
 	DirAccess.remove_absolute(folder.path_join("a.vrm"))
 	session._look_in_folder()

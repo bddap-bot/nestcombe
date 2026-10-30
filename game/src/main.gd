@@ -59,6 +59,7 @@ func _ready() -> void:
 		get_tree().set_multiplayer(replayer)
 		rng_seed = int(record.seeds.rng)
 		args.seed = record.seeds.wildlife
+		args.avatar = record.messages.filter(func(m: Array) -> bool: return m[3] == "look")[0][4][1]
 	seed(rng_seed)
 	Store.check()
 	get_viewport().use_occlusion_culling = true

@@ -2211,9 +2211,10 @@ static func daubs(n: int) -> Array:
 
 ## The player wears built-in avatar `avatar`, or the VRM at `file`, tinted `tint`.
 func _wear(s: Dictionary) -> void:
-	var scene := Avatar.read(FileAccess.get_file_as_bytes(s.file)) if s.has("file") else Avatar.built_in(int(s.avatar))
-	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
-	main.rig.wear(Avatar.open(scene, Color(s.get("tint", "#d9824b"))))
+	var bytes := FileAccess.get_file_as_bytes(s.file) if s.has("file") else PackedByteArray()
+	var scene := Avatar.read(bytes) if s.has("file") else null
+	assert(scene != null or not s.has("file"), "driver: %s is not an avatar within the limits" % s.get("file"))
+	main.session.put_on.call_deferred(scene, Session.sha256(bytes) if s.has("file") else "", bytes, int(s.get("avatar", 0)), Color(s.get("tint", "#d9824b")))
 	await _frames(2)
 
 

@@ -435,16 +435,23 @@ func spawn() -> Vector3:
 
 
 ## Sets the player's head over `ground`, `lift_m` up, at the world's scale that fits them to their avatar (`fit`): over
-## it where the runtime next reports the tracked head at that scale. The head itself is the runtime's alone, so a
-## session record keeps it as the runtime gave it and a replay places the player from the same pose.
+## it where the head stands once it is next reported at that scale. The head moves with the scale between frames, as a
+## headset's runtime reports it, never within one, so a session record keeps each frame's head as it was given and a
+## replay places the player from the same pose.
 func place(ground: Vector3, lift_m: float) -> void:
 	var s := fit()
 	var h := global_transform * (head.position * s / world_scale)
+	if s != world_scale:
+		_rescale_head.call_deferred(s / world_scale)
 	world_scale = s
 	head.near = NEAR * s
 	_floor_y = maxf(ground.y, terrain.shown_at(ground.x, ground.z))
 	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)
 	placed.emit()
+
+
+func _rescale_head(by: float) -> void:
+	head.position *= by
 
 
 func snap_turn(angle: float, hand: Hand) -> void:

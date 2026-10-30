@@ -743,6 +743,8 @@ func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 ## rig refits the player (`Rig.fit`) from the same frame in both.
 func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, tint: Color) -> void:
 	world.hear("look", [bytes, look, tint])
+	avatar = look
+	colour = tint
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(look), tint, key))
 
 

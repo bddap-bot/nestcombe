@@ -172,11 +172,11 @@ static func read(path: String, avatars := "") -> Dictionary:
 			continue
 		if held.is_empty() and avatars != "":
 			for f in DirAccess.get_files_at(avatars):
-				if f.get_extension().to_lower() == "vrm":
+				if f.get_extension().to_lower() == "vrm" and FileAccess.get_size(avatars.path_join(f)) <= Avatar.MAX_BYTES:
 					var bytes := FileAccess.get_file_as_bytes(avatars.path_join(f))
 					held[Session.sha256(bytes)] = bytes
 		if not held.has(m[4][0].sha256):
-			return {"error": "%s wears avatar file %s, which the folder %s does not hold: pass the avatars folder of the device that recorded it (--avatars)" % [path, m[4][0].sha256, avatars]}
+			return {"error": "%s wears avatar file %s, which %s does not hold: pass the avatars folder of the device that recorded it (--avatars)" % [path, m[4][0].sha256, "the folder " + avatars if avatars != "" else "no folder"]}
 		out.avatars[m[4][0].sha256] = held[m[4][0].sha256]
 	return out
 

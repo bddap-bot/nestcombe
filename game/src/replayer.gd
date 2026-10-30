@@ -185,8 +185,6 @@ func _deliver(m: Array) -> void:
 			var file: Variant = m[4][0]
 			var key: String = file.sha256 if file is Dictionary else ""
 			var bytes: PackedByteArray = record.avatars[key] if key != "" else PackedByteArray()
-			_main.session.avatar = m[4][1]
-			_main.session.colour = m[4][2]
 			_main.session.put_on(Avatar.read(bytes) if key != "" else null, key, bytes, m[4][1], m[4][2])
 		"paused", "resumed":
 			_main.held(m[3] == "paused")
