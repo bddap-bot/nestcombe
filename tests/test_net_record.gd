@@ -22,7 +22,7 @@ func _initialize() -> void:
 	main.session._wear(avatar, 2)
 	main.session._wear(PackedByteArray(), 0)
 	cmd.seed = 2
-	await until(func() -> bool: return log._messages == 4, "a second's messages taken for writing")
+	await until(func() -> bool: return log._messages == 5, "a second's messages taken for writing")
 	log._join()
 	main.session._threw(Vector3.ONE, Vector3.UP, 3)
 	log.finish()
@@ -42,6 +42,8 @@ func _initialize() -> void:
 	for e in nets:
 		check(int(e.first) == heard.size(), "net events follow on from each other")
 		heard.append_array(Replay.messages(e))
+	check(heard[0][3] == "look" and heard[0][0] == 0, "the record begins with the look the session began in: %s" % [heard[0].slice(0, 4)])
+	heard = heard.slice(1)
 	var calls := heard.map(func(m: Array) -> String: return m[3])
 	check(calls == ["_pose", "_commit", "_wear", "_wear", "_threw"], "every message is kept, in the order heard: %s" % [calls])
 	check(heard[0][0] == first and heard[1][0] == first and heard[2][0] == first + 2, "each with the frame it came in before: %s" % [heard.map(func(m): return m[0])])
@@ -55,7 +57,7 @@ func _initialize() -> void:
 	var out := []
 	var code := OS.execute("python3", [ProjectSettings.globalize_path("res://../scripts/sessions.py"), ProjectSettings.globalize_path(folder), "--json"], out, true)
 	var read: Variant = JSON.parse_string(out[0]) if code == 0 else null
-	check(read is Array and read.size() == 1 and int(read[0].net.messages) == 5 and int(read[0].net.missing) == 0 and read[0].net.commands == {"9": 1.0},
+	check(read is Array and read.size() == 1 and int(read[0].net.messages) == 6 and int(read[0].net.missing) == 0 and read[0].net.commands == {"9": 1.0},
 		"scripts/sessions.py counts the messages and each player's build commands: %s" % [out])
 
 	for name in DirAccess.get_files_at(folder):
