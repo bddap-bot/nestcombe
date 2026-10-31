@@ -238,7 +238,7 @@ func _replay(chunk: String) -> Dictionary:
 	var out := ProjectSettings.globalize_path(chunk.get_base_dir().path_join("replayed"))
 	DirAccess.remove_absolute(out)
 	var said := []
-	var code := OS.execute(OS.get_executable_path(), ["--headless", "--fixed-fps", "60", "--path", ProjectSettings.globalize_path("res://"),
+	var code := OS.execute(OS.get_executable_path(), ["--headless", "--fixed-fps", "64", "--path", ProjectSettings.globalize_path("res://"),
 		"--script", "../tests/support/replayed.gd", "--", "--replay", ProjectSettings.globalize_path(chunk), "--out", out,
 		"--avatars", _avatars], said, true)
 	check(code == 0 and FileAccess.file_exists(out), "the replay of %s runs: exit %d\n%s" % [chunk.get_base_dir().get_file(), code, said[0].right(4000)])

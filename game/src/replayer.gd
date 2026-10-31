@@ -18,6 +18,8 @@ var _sender := 0
 var _peers := PackedInt32Array()
 var _peer: MultiplayerPeer = OfflineMultiplayerPeer.new()
 var _head: Transform3D
+## The engine's step before scaling, as last measured; 0 until the frame before the record's first measures it.
+var _step := 0.0
 ## The next of the record's checks of the parts to compare, and the record's gardens not yet come to, oldest first: each
 ## garden numbers its own commands, so only the oldest is looked for.
 var _check := 0
@@ -38,6 +40,8 @@ func _init(on: Main, played: Dictionary) -> void:
 		if c.has("garden") and (_gardens.is_empty() or _gardens[-1].seq != c.seq or _gardens[-1].garden != c.garden):
 			_gardens.append(c)
 	RenderingServer.frame_pre_draw.connect(_view)
+	# Snapping frames to physics ticks would move the step a fixed rate gives, which every recorded delta is scaled from.
+	Engine.physics_jitter_fix = 0.0
 
 
 ## Compares the garden with the record's whenever it comes to a command the record kept it after: as that command has
@@ -57,6 +61,12 @@ func watch(world: World) -> void:
 func _poll() -> Error:
 	if _frame > _count:
 		return OK
+	if _step == 0.0:
+		_step = _main.get_process_delta_time()
+		_main.get_tree().paused = true
+		_pace()
+		return OK
+	_main.get_tree().paused = false
 	var messages: Array = record.messages
 	while _next < messages.size() and messages[_next][0] <= _frame:
 		_next += 1
@@ -79,11 +89,26 @@ func _poll() -> Error:
 	return OK
 
 
-## Scales the next frame to its recorded delta, taking this frame's own step, unscaled, as the next one's: exact when the
-## run steps by a fixed rate (--fixed-fps), as close as its frame times allow when it runs in real time.
+## Scales the next frame to its recorded delta, as the engine multiplies its step by the scale. The first frame of the
+## run, which plays none of the record with the tree paused, gives the step: where the run steps by a fixed rate
+## (--fixed-fps) every frame then takes its recorded delta exactly, the record's first too; in real time a frame that
+## took another step stands for the next one's, as close as its frame times allow.
 func _pace() -> void:
-	var step := _main.get_process_delta_time() / Engine.time_scale if Engine.time_scale > 0.0 else 0.0
-	Engine.time_scale = record.frames.decode_double(_frame * Replay.FRAME_BYTES) / step if _frame < _count and step > 0.0 else 1.0
+	var took := _main.get_process_delta_time()
+	if _frame > 0 and Engine.time_scale > 0.0 and took != _step * Engine.time_scale:
+		_step = took / Engine.time_scale
+	if _frame >= _count or _step <= 0.0:
+		Engine.time_scale = 1.0
+		return
+	var delta: float = record.frames.decode_double(_frame * Replay.FRAME_BYTES)
+	var bits := PackedFloat64Array([delta / _step]).to_byte_array()
+	var nearest := bits.decode_s64(0)
+	for k in [0, 1, -1, 2, -2]:
+		bits.encode_s64(0, nearest + k)
+		if _step * bits.decode_double(0) == delta:
+			Engine.time_scale = bits.decode_double(0)
+			return
+	Engine.time_scale = delta / _step
 
 
 ## A headset draws its eyes where its own tracking puts them, whatever the head node says. XROrigin3D sets the play

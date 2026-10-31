@@ -10,9 +10,13 @@ it. The game starts from the record's seeds and garden, and `Replayer` takes the
 at the start of every frame, before anything else runs, and there it delivers each message the record says came in
 before that frame, as from the peer that sent it, then puts the head and hands where the record has them and presses
 the inputs the record has held. Peers come and go as the record says; a join reaches no one, and the game takes the id
-the host gave it then; what the game sends goes nowhere. Each frame is scaled to its recorded delta, taking the frame
-before as its own length: under `--fixed-fps` that is exact, and the replay is the session again, bit for bit. In real
-time a frame's length is only known after it, so deltas and whatever depends on them can differ. A hand played on its
+the host gave it then; what the game sends goes nowhere. Each frame is scaled to its recorded delta: the run's first
+frame plays none of the record, with the tree paused, and gives the engine's step, and under `--fixed-fps` every frame
+then takes its recorded delta, the first one's too (a headset's, a load long, feeds how tall the player is measured).
+At a rate that is a power of two (`--fixed-fps 64`) every delta is exact and the replay is the session again, bit for
+bit, however the session ran; at another a few deltas miss by their last bit. The replay turns off the engine's
+snapping of frames to physics ticks, which would move the step. In real time a frame's length is only known after it,
+so deltas and whatever depends on them can differ. A hand played on its
 joints replays as a controller held at its palm, giving the same inputs. The game quits when the record runs out.
 
 The garden is the record's: every build command replays as the host ordered it (`ordered` in a host's record,
